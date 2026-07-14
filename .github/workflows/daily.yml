@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 # A delayed run can overlap the next slot; serialize so the second run sees
-# the first one's LAST_SENT_DATE and skips instead of double-sending.
+# the first one's sent-<date> marker and skips instead of double-sending.
 concurrency:
   group: daily-gas-alert
   cancel-in-progress: false
