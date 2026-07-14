@@ -2,7 +2,7 @@ import datetime as dt
 
 from gas_alert.config import DEFAULT_EXCLUDE_STATIONS, City
 from gas_alert.notify import email_body, email_html, maps_links, sms_text
-from gas_alert.sources import StationPrice, is_excluded
+from gas_alert.sources import AnchorPick, StationPrice, distance_km, is_excluded
 
 TODAY = dt.date(2026, 7, 12)
 
@@ -63,6 +63,33 @@ def test_email_html_has_anchors():
     page = email_html(CITIES, RESULTS, TODAY)
     assert '<a href="https://maps.apple.com/?ll=37.770600,-122.409800&q=Chevron">' in page
     assert "no price available today" in page
+
+
+HOME_PICK = AnchorPick(
+    "Home", "Home", 5.0,
+    StationPrice("Shell", "2801 Telegraph Ave", 4.35, "google_places",
+                 37.8580, -122.2603),
+    1.2,
+)
+
+
+def test_sms_appends_anchor_line_with_distance():
+    text = sms_text(CITIES, RESULTS, TODAY, anchor_picks=[HOME_PICK])
+    assert "Home $4.35 Shell Telegraph 1.2km" in text
+    assert text.index("Berk: n/a") < text.index("Home $4.35")
+
+
+def test_email_anchor_section_has_radius_and_distance():
+    body = email_body(CITIES, RESULTS, TODAY, anchor_picks=[HOME_PICK])
+    assert "Near Home (within 5 km): $4.35 — Shell, 1.2 km away" in body
+    page = email_html(CITIES, RESULTS, TODAY, anchor_picks=[HOME_PICK])
+    assert "<b>Near Home</b> (5 km): $4.35" in page
+
+
+def test_distance_km_known_pair():
+    # SF Ferry Building to Oakland City Hall is ~11 km as the crow flies
+    d = distance_km(37.7955, -122.3937, 37.8053, -122.2725)
+    assert 10 < d < 12
 
 
 def test_links_fall_back_to_address_query_without_coords():

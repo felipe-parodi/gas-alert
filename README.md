@@ -55,6 +55,7 @@ for missing cities.
    | Secret | Required | Example |
    |---|---|---|
    | `CITIES_JSON` | yes | see `.env.example` |
+   | `ANCHORS_JSON` | no | home/work radius picks, see `.env.example` |
    | `GMAIL_ADDRESS` | yes | `you@gmail.com` |
    | `GMAIL_APP_PASSWORD` | yes | app password |
    | `EMAIL_TO` | no (defaults to sender) | `you@gmail.com` |

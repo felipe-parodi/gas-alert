@@ -37,9 +37,14 @@ def _fresh(update_time: str | None) -> bool:
     return age <= dt.timedelta(hours=MAX_PRICE_AGE_HOURS)
 
 
-def cheapest_regular(
-    city: City, api_key: str | None, excluded: list[str]
-) -> StationPrice:
+def regular_prices(
+    lat: float,
+    lng: float,
+    radius_m: float,
+    api_key: str | None,
+    excluded: list[str],
+) -> list[StationPrice]:
+    """All stations with a fresh Regular price inside the circle."""
     if not api_key:
         raise SourceUnavailable("google_places: no GOOGLE_MAPS_API_KEY set")
 
@@ -49,8 +54,8 @@ def cheapest_regular(
         "rankPreference": "DISTANCE",
         "locationRestriction": {
             "circle": {
-                "center": {"latitude": city.lat, "longitude": city.lng},
-                "radius": RADIUS_METERS,
+                "center": {"latitude": lat, "longitude": lng},
+                "radius": radius_m,
             }
         },
     }
@@ -66,7 +71,7 @@ def cheapest_regular(
     except (requests.RequestException, ValueError) as exc:
         raise SourceUnavailable(f"google_places: {exc}") from exc
 
-    best: StationPrice | None = None
+    found: list[StationPrice] = []
     for place in data.get("places", []):
         name = (place.get("displayName") or {}).get("text", "Unknown")
         if is_excluded(name, excluded):
@@ -84,18 +89,23 @@ def cheapest_regular(
             if price <= 0 or not _fresh(fp.get("updateTime")):
                 continue
             location = place.get("location") or {}
-            candidate = StationPrice(
-                station=name,
-                address=place.get("formattedAddress", ""),
-                price=price,
-                source="google_places",
-                lat=location.get("latitude"),
-                lng=location.get("longitude"),
+            found.append(
+                StationPrice(
+                    station=name,
+                    address=place.get("formattedAddress", ""),
+                    price=price,
+                    source="google_places",
+                    lat=location.get("latitude"),
+                    lng=location.get("longitude"),
+                )
             )
-            if best is None or candidate.price < best.price:
-                best = candidate
-    if best is None:
-        raise SourceUnavailable(
-            f"google_places: no fresh regular prices for {city.name}"
-        )
-    return best
+    return found
+
+
+def cheapest_regular(
+    city: City, api_key: str | None, excluded: list[str]
+) -> StationPrice:
+    found = regular_prices(city.lat, city.lng, RADIUS_METERS, api_key, excluded)
+    if not found:
+        raise SourceUnavailable("google_places: no fresh regular prices in radius")
+    return min(found, key=lambda s: s.price)

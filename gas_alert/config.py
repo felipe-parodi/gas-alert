@@ -30,6 +30,34 @@ def load_cities() -> list[City]:
         return DEFAULT_CITIES
     return [City(**entry) for entry in json.loads(raw)]
 
+
+@dataclass(frozen=True)
+class Anchor:
+    """A point of interest (home, work) to find the best nearby station for.
+
+    Set via ANCHORS_JSON (a secret in CI — these are your coordinates):
+      [{"label": "Home", "short": "Home", "lat": 37.0, "lng": -122.0,
+        "radius_km": 5}]
+    """
+
+    label: str
+    short: str
+    lat: float
+    lng: float
+    radius_km: float = 5.0
+
+
+# Among stations within this many dollars of an anchor's cheapest price,
+# prefer the nearest — crossing town to save 2 cents is a loss.
+PRICE_TIE_USD = 0.05
+
+
+def load_anchors() -> list[Anchor]:
+    raw = os.environ.get("ANCHORS_JSON")
+    if not raw:
+        return []
+    return [Anchor(**entry) for entry in json.loads(raw)]
+
 # Ignore prices older than this — a 3-day-old crowd-sourced price is noise.
 MAX_PRICE_AGE_HOURS = 48
 

@@ -4,11 +4,31 @@ Sources raise SourceUnavailable when they can't produce a usable answer
 (blocked, no key, no fresh prices); the caller then tries the next source.
 """
 
+import math
 from dataclasses import dataclass
 
 
 class SourceUnavailable(Exception):
     pass
+
+
+def distance_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Haversine great-circle distance."""
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp, dl = math.radians(lat2 - lat1), math.radians(lng2 - lng1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 6371.0 * 2 * math.asin(math.sqrt(a))
+
+
+@dataclass(frozen=True)
+class AnchorPick:
+    """Best station near an anchor: cheapest, nearest among near-ties."""
+
+    label: str
+    short: str
+    radius_km: float
+    station: "StationPrice"
+    distance_km: float
 
 
 def is_excluded(station_name: str, excluded: list[str]) -> bool:

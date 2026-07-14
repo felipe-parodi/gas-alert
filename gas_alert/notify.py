@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 import requests
 
 from .config import City, Settings
-from .sources import StationPrice
+from .sources import AnchorPick, StationPrice
 
 PACIFIC = ZoneInfo("America/Los_Angeles")
 
@@ -38,12 +38,15 @@ def sms_text(
     results: dict[str, StationPrice | None],
     today: dt.date,
     maps_app: str = "apple",
+    anchor_picks: list[AnchorPick] = (),
 ) -> str:
     """One line per city with a tappable map link. ASCII only — carrier
     gateways mangle anything fancier (em dashes get eaten).
 
     Gas 7/12
     SF $4.39 Chevron 10th
+    https://maps.apple.com/?ll=...
+    Home $4.35 Shell Telegraph 1.2km
     https://maps.apple.com/?ll=...
     """
     lines = [f"Gas {today.month}/{today.day}"]
@@ -54,31 +57,67 @@ def sms_text(
         else:
             lines.append(f"{city.short} ${r.price:.2f} {r.short_label}")
             lines.append(maps_links(r)[maps_app])
+    for p in anchor_picks:
+        lines.append(
+            f"{p.short} ${p.station.price:.2f} {p.station.short_label} "
+            f"{p.distance_km:.1f}km"
+        )
+        lines.append(maps_links(p.station)[maps_app])
     return "\n".join(lines)
 
 
+def _station_lines(r: StationPrice, heading: str) -> list[str]:
+    links = maps_links(r)
+    return [
+        heading,
+        f"  {r.address}",
+        f"  Google Maps: {links['google']}",
+        f"  Apple Maps:  {links['apple']}",
+        f"  Waze:        {links['waze']}",
+        f"  (source: {r.source})",
+        "",
+    ]
+
+
 def email_body(
-    cities: list[City], results: dict[str, StationPrice | None], today: dt.date
+    cities: list[City],
+    results: dict[str, StationPrice | None],
+    today: dt.date,
+    anchor_picks: list[AnchorPick] = (),
 ) -> str:
     lines = [f"Cheapest Regular (87) for {today.strftime('%A, %B %-d, %Y')}:", ""]
     for city in cities:
         r = results.get(city.name)
         if r is None:
             lines.append(f"{city.name}: no price available today")
+            lines.append("")
         else:
-            links = maps_links(r)
-            lines.append(f"{city.name}: ${r.price:.2f} — {r.station}")
-            lines.append(f"  {r.address}")
-            lines.append(f"  Google Maps: {links['google']}")
-            lines.append(f"  Apple Maps:  {links['apple']}")
-            lines.append(f"  Waze:        {links['waze']}")
-            lines.append(f"  (source: {r.source})")
-        lines.append("")
+            lines.extend(_station_lines(r, f"{city.name}: ${r.price:.2f} — {r.station}"))
+    for p in anchor_picks:
+        lines.extend(_station_lines(
+            p.station,
+            f"Near {p.label} (within {p.radius_km:g} km): "
+            f"${p.station.price:.2f} — {p.station.station}, "
+            f"{p.distance_km:.1f} km away",
+        ))
     return "\n".join(lines)
 
 
+def _station_html(r: StationPrice, heading_html: str) -> str:
+    links = maps_links(r)
+    anchors = " | ".join(
+        f'<a href="{links[app]}">{label}</a>'
+        for app, label in [("google", "Google Maps"), ("apple", "Apple Maps"),
+                           ("waze", "Waze")]
+    )
+    return f"<p>{heading_html}<br>{html.escape(r.address)}<br>{anchors}</p>"
+
+
 def email_html(
-    cities: list[City], results: dict[str, StationPrice | None], today: dt.date
+    cities: list[City],
+    results: dict[str, StationPrice | None],
+    today: dt.date,
+    anchor_picks: list[AnchorPick] = (),
 ) -> str:
     """HTML alternative so the links are real anchors — some mail clients
     don't auto-link URLs in plain text."""
@@ -88,18 +127,18 @@ def email_html(
         if r is None:
             rows.append(f"<p><b>{html.escape(city.name)}</b>: no price available today</p>")
             continue
-        links = maps_links(r)
-        anchors = " | ".join(
-            f'<a href="{links[app]}">{label}</a>'
-            for app, label in [("google", "Google Maps"), ("apple", "Apple Maps"),
-                               ("waze", "Waze")]
-        )
-        rows.append(
-            f"<p><b>{html.escape(city.name)}</b>: ${r.price:.2f} — "
-            f"{html.escape(r.station)}<br>"
-            f"{html.escape(r.address)}<br>"
-            f"{anchors}</p>"
-        )
+        rows.append(_station_html(
+            r,
+            f"<b>{html.escape(city.name)}</b>: ${r.price:.2f} — "
+            f"{html.escape(r.station)}",
+        ))
+    for p in anchor_picks:
+        rows.append(_station_html(
+            p.station,
+            f"<b>Near {html.escape(p.label)}</b> ({p.radius_km:g} km): "
+            f"${p.station.price:.2f} — {html.escape(p.station.station)}, "
+            f"{p.distance_km:.1f} km away",
+        ))
     return "\n".join(rows)
 
 
@@ -124,12 +163,13 @@ def send_all(
     cities: list[City],
     results: dict[str, StationPrice | None],
     today: dt.date,
+    anchor_picks: list[AnchorPick] = (),
 ) -> list[str]:
     """Send email, SMS, and ntfy as configured. Returns channels that succeeded.
 
     Channels fail independently — a dead SMS gateway must not kill the email.
     """
-    short = sms_text(cities, results, today, settings.maps_app)
+    short = sms_text(cities, results, today, settings.maps_app, anchor_picks)
     sent: list[str] = []
     errors: list[str] = []
 
@@ -143,12 +183,14 @@ def send_all(
             settings,
             settings.email_to,
             subject,
-            email_body(cities, results, today),
-            email_html(cities, results, today),
+            email_body(cities, results, today, anchor_picks),
+            email_html(cities, results, today, anchor_picks),
         )
         sent.append("email")
     except Exception as exc:  # noqa: BLE001
-        errors.append(f"email: {exc}")
+        # Exception type only: SMTP errors can echo recipient addresses, and
+        # these strings end up in public CI logs.
+        errors.append(f"email: {type(exc).__name__}")
 
     if settings.sms_to:
         try:
@@ -157,7 +199,7 @@ def send_all(
             _send_via_gmail(settings, settings.sms_to, "", short)
             sent.append("sms")
         except Exception as exc:  # noqa: BLE001
-            errors.append(f"sms: {exc}")
+            errors.append(f"sms: {type(exc).__name__}")
 
     if settings.ntfy_topic:
         try:
@@ -169,7 +211,7 @@ def send_all(
             ).raise_for_status()
             sent.append("ntfy")
         except Exception as exc:  # noqa: BLE001
-            errors.append(f"ntfy: {exc}")
+            errors.append(f"ntfy: {type(exc).__name__}")
 
     for err in errors:
         print(f"WARNING: delivery failed — {err}")

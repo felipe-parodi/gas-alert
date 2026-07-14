@@ -99,5 +99,5 @@ def cheapest_regular(city: City, excluded: list[str]) -> StationPrice:
                 if best is None or candidate.price < best.price:
                     best = candidate
     if best is None:
-        raise SourceUnavailable(f"gasbuddy: no fresh regular prices for {city.name}")
+        raise SourceUnavailable("gasbuddy: no fresh regular prices in area")
     return best
