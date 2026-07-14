@@ -11,6 +11,11 @@ class SourceUnavailable(Exception):
     pass
 
 
+def is_excluded(station_name: str, excluded: list[str]) -> bool:
+    name = station_name.lower()
+    return any(pattern in name for pattern in excluded)
+
+
 @dataclass(frozen=True)
 class StationPrice:
     station: str  # e.g. "Costco"

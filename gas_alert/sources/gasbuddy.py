@@ -10,7 +10,7 @@ import datetime as dt
 import requests
 
 from ..config import MAX_PRICE_AGE_HOURS, City
-from . import SourceUnavailable, StationPrice
+from . import SourceUnavailable, StationPrice, is_excluded
 
 GRAPHQL_URL = "https://www.gasbuddy.com/graphql"
 FUEL_REGULAR = 1
@@ -57,7 +57,7 @@ def _fresh(posted_time: str | None) -> bool:
     return age <= dt.timedelta(hours=MAX_PRICE_AGE_HOURS)
 
 
-def cheapest_regular(city: City) -> StationPrice:
+def cheapest_regular(city: City, excluded: list[str]) -> StationPrice:
     payload = {
         "operationName": "LocationBySearchTerm",
         "variables": {"fuel": FUEL_REGULAR, "maxAge": 0, "search": city.search},
@@ -78,6 +78,8 @@ def cheapest_regular(city: City) -> StationPrice:
     )
     best: StationPrice | None = None
     for st in stations:
+        if is_excluded(st.get("name", ""), excluded):
+            continue
         for price_entry in st.get("prices", []):
             for pay_type in ("cash", "credit"):
                 p = price_entry.get(pay_type) or {}

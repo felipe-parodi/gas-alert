@@ -16,17 +16,23 @@ PACIFIC = ZoneInfo("America/Los_Angeles")
 def sms_text(
     cities: list[City], results: dict[str, StationPrice | None], today: dt.date
 ) -> str:
-    """Short one-liner, e.g.
-    Gas 7/12 — SF: $4.39 Costco 10th | Oak: $4.29 Safeway Broadway
+    """One line per city with a tappable map link. ASCII only — carrier
+    gateways mangle anything fancier (em dashes get eaten).
+
+    Gas 7/12
+    SF $4.39 Chevron 10th
+    https://maps.google.com/?cid=123
     """
-    parts = []
+    lines = [f"Gas {today.month}/{today.day}"]
     for city in cities:
         r = results.get(city.name)
         if r is None:
-            parts.append(f"{city.short}: n/a")
+            lines.append(f"{city.short}: n/a")
         else:
-            parts.append(f"{city.short}: ${r.price:.2f} {r.short_label}")
-    return f"Gas {today.month}/{today.day} — " + " | ".join(parts)
+            lines.append(f"{city.short} ${r.price:.2f} {r.short_label}")
+            if r.maps_url:
+                lines.append(r.maps_url)
+    return "\n".join(lines)
 
 
 def email_body(
@@ -73,9 +79,14 @@ def send_all(
     sent: list[str] = []
     errors: list[str] = []
 
+    subject = f"Gas {today.month}/{today.day}: " + " | ".join(
+        f"{c.short} ${results[c.name].price:.2f}" if results.get(c.name) else
+        f"{c.short} n/a"
+        for c in cities
+    )
     try:
         _send_via_gmail(
-            settings, settings.email_to, short, email_body(cities, results, today)
+            settings, settings.email_to, subject, email_body(cities, results, today)
         )
         sent.append("email")
     except Exception as exc:  # noqa: BLE001

@@ -3,7 +3,16 @@
 Every morning (6:15 AM Pacific), finds the cheapest **Regular (87)** station in
 each of your configured cities and sends one email + one free SMS:
 
-> `Gas 7/12 — SF: $4.39 Costco 10th | Oak: $4.29 Safeway Broadway | Berk: $4.45 ARCO San Pablo`
+> ```
+> Gas 7/12
+> SF $4.39 Chevron 10th
+> https://maps.google.com/?cid=...
+> Oak $4.29 Safeway Broadway
+> https://maps.google.com/?cid=...
+> ```
+
+Membership-only pumps (Costco, BJ's, Sam's Club) are skipped by default;
+override with `EXCLUDE_STATIONS`.
 
 All personal configuration — cities, email, phone — lives in environment
 variables / GitHub Actions secrets, never in the repo.
@@ -76,6 +85,8 @@ messages. If texts get flaky, set `NTFY_TOPIC` and install the
 
 - Cities / labels: `CITIES_JSON` env var (see `.env.example`); defaults in
   `gas_alert/config.py`
+- Skipped stations: `EXCLUDE_STATIONS` env var (default: membership-only
+  brands)
 - Price freshness window: `MAX_PRICE_AGE_HOURS` (48h)
 - Search radius for Places: `RADIUS_METERS` in `gas_alert/sources/google_places.py`
 - Schedule: `.github/workflows/daily.yml` (dual cron + DST guard keeps it at

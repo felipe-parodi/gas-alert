@@ -10,20 +10,22 @@ import argparse
 import datetime as dt
 import sys
 
-from .config import City, load_cities, settings_from_env
+from .config import City, load_cities, load_excluded_stations, settings_from_env
 from .notify import PACIFIC, email_body, send_all, sms_text
 from .sources import SourceUnavailable, StationPrice
 from .sources import gasbuddy, google_places
 
 
-def fetch_city(city: City, google_key: str | None) -> StationPrice | None:
+def fetch_city(
+    city: City, google_key: str | None, excluded: list[str]
+) -> StationPrice | None:
     """Try sources in order of preference; None if all fail for this city."""
     try:
-        return gasbuddy.cheapest_regular(city)
+        return gasbuddy.cheapest_regular(city, excluded)
     except SourceUnavailable as exc:
         print(f"{city.name}: {exc}")
     try:
-        return google_places.cheapest_regular(city, google_key)
+        return google_places.cheapest_regular(city, google_key, excluded)
     except SourceUnavailable as exc:
         print(f"{city.name}: {exc}")
     return None
@@ -31,7 +33,7 @@ def fetch_city(city: City, google_key: str | None) -> StationPrice | None:
 
 def demo_results(cities: list[City]) -> dict[str, StationPrice | None]:
     fake = [
-        StationPrice("Costco", "450 10th St", 4.39, "demo",
+        StationPrice("Chevron", "450 10th St", 4.39, "demo",
                      "https://maps.google.com/?q=demo"),
         StationPrice("Safeway", "3550 Broadway", 4.29, "demo",
                      "https://maps.google.com/?q=demo"),
@@ -56,8 +58,9 @@ def main() -> int:
         results = demo_results(cities)
     else:
         settings = settings_from_env()
+        excluded = load_excluded_stations()
         results = {
-            city.name: fetch_city(city, settings.google_maps_api_key)
+            city.name: fetch_city(city, settings.google_maps_api_key, excluded)
             for city in cities
         }
 

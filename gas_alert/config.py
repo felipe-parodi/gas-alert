@@ -33,6 +33,17 @@ def load_cities() -> list[City]:
 # Ignore prices older than this — a 3-day-old crowd-sourced price is noise.
 MAX_PRICE_AGE_HOURS = 48
 
+# Stations that require a membership to pump (matched case-insensitively as
+# substrings of the station name). Override with EXCLUDE_STATIONS, comma-sep.
+DEFAULT_EXCLUDE_STATIONS = ["costco", "bj's", "bjs", "sam's club", "sams club"]
+
+
+def load_excluded_stations() -> list[str]:
+    raw = os.environ.get("EXCLUDE_STATIONS")
+    if raw is None:
+        return DEFAULT_EXCLUDE_STATIONS
+    return [s.strip().lower() for s in raw.split(",") if s.strip()]
+
 
 @dataclass(frozen=True)
 class Settings:
