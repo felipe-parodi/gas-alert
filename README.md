@@ -1,6 +1,6 @@
 # gas-alert
 
-Every morning (6:15 AM Pacific), finds the cheapest **Regular (87)** station in
+Every morning (10 AM Pacific), finds the cheapest **Regular (87)** station in
 each of your configured cities and sends one email + one free SMS:
 
 > ```
@@ -22,7 +22,7 @@ The email carries the same info plus addresses and Google Maps links.
 ## How it works
 
 ```
-GitHub Actions cron (6:15 AM PT)
+GitHub Actions cron (10 AM PT)
   └─ python -m gas_alert.main
        ├─ per city: GasBuddy GraphQL → fallback: Google Places API (New)
        ├─ pick lowest fresh (≤48h) Regular price per city
@@ -93,4 +93,4 @@ messages. If texts get flaky, set `NTFY_TOPIC` and install the
 - Price freshness window: `MAX_PRICE_AGE_HOURS` (48h)
 - Search radius for Places: `RADIUS_METERS` in `gas_alert/sources/google_places.py`
 - Schedule: `.github/workflows/daily.yml` (dual cron + DST guard keeps it at
-  6:15 AM Pacific year-round)
+  10 AM Pacific year-round)

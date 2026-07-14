@@ -2,11 +2,11 @@ name: Daily gas alert
 
 on:
   schedule:
-    # GH Actions cron is UTC and can't express "6 AM Pacific" across DST.
+    # GH Actions cron is UTC and can't express "10 AM Pacific" across DST.
     # Run at both candidate hours; the guard step keeps only the one that
-    # lands in the 6 AM Pacific hour.
-    - cron: "15 13 * * *"  # 6:15 AM PDT (summer)
-    - cron: "15 14 * * *"  # 6:15 AM PST (winter)
+    # lands in the 10 AM Pacific hour.
+    - cron: "0 17 * * *"  # 10:00 AM PDT (summer)
+    - cron: "0 18 * * *"  # 10:00 AM PST (winter)
   workflow_dispatch:
 
 jobs:
@@ -17,11 +17,11 @@ jobs:
         id: guard
         run: |
           hour=$(TZ=America/Los_Angeles date +%-H)
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$hour" = "6" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$hour" = "10" ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping: it is ${hour}h Pacific, not 6h"
+            echo "Skipping: it is ${hour}h Pacific, not 10h"
           fi
 
       - uses: actions/checkout@v4
