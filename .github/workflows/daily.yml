@@ -10,6 +10,8 @@ on:
     - cron: "7 18 * * *"  # 11:07 PDT backstop | 10:07 PST
     - cron: "7 19 * * *"  # 12:07 PDT backstop | 11:07 PST backstop
   workflow_dispatch:
+  push:  # TEMPORARY: verify the guard end-to-end from the feature branch
+    branches: [claude/missing-message-email-delivery-io2v2d]
 
 # A delayed run can overlap the next slot; serialize so the second run sees
 # the first one's LAST_SENT_DATE and skips instead of double-sending.
