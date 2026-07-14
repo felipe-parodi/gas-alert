@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  actions: write  # LAST_SENT_DATE variable + schedule keepalive
+  actions: write  # schedule keepalive (re-enable workflow)
   contents: read
 
 jobs:
@@ -32,17 +32,22 @@ jobs:
       - name: Send once per day, at or after 10 AM Pacific
         id: guard
         run: |
+          # "Sent today" is tracked as a workflow artifact named sent-<date>:
+          # GITHUB_TOKEN can't write repo variables (403), but uploading an
+          # artifact needs no API permission and listing needs only
+          # actions:read. On a read error, err toward sending — a rare
+          # duplicate beats a silent miss.
           today=$(TZ=America/Los_Angeles date +%F)
           hour=$(TZ=America/Los_Angeles date +%-H)
-          last=$(gh api "repos/$GITHUB_REPOSITORY/actions/variables/LAST_SENT_DATE" -q .value 2>/dev/null || echo "")
+          sent=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=sent-$today" -q .total_count 2>/dev/null || echo 0)
           echo "today=$today" >> "$GITHUB_OUTPUT"
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
-          elif [ "$hour" -ge 10 ] && [ "$last" != "$today" ]; then
+          elif [ "$hour" -ge 10 ] && [ "${sent:-0}" -eq 0 ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping: ${hour}h Pacific, last sent: ${last:-never}"
+            echo "Skipping: ${hour}h Pacific, sent-today artifacts: ${sent:-0}"
           fi
 
       - name: Keep the schedule alive
@@ -72,12 +77,14 @@ jobs:
         run: uv run python -m gas_alert.main
 
       - name: Mark today as sent
-        # Only reached when the send succeeded — a failed send leaves the
-        # variable stale so the next cron slot retries automatically.
+        # Only reached when the send succeeded — a failed send uploads no
+        # marker, so the next cron slot retries automatically.
         if: steps.guard.outputs.run == 'true'
-        run: |
-          today="${{ steps.guard.outputs.today }}"
-          gh api -X PATCH "repos/$GITHUB_REPOSITORY/actions/variables/LAST_SENT_DATE" \
-            -f name=LAST_SENT_DATE -f value="$today" 2>/dev/null \
-            || gh api -X POST "repos/$GITHUB_REPOSITORY/actions/variables" \
-                 -f name=LAST_SENT_DATE -f value="$today"
+        run: date -u > sent-marker.txt
+
+      - uses: actions/upload-artifact@v4
+        if: steps.guard.outputs.run == 'true'
+        with:
+          name: sent-${{ steps.guard.outputs.today }}
+          path: sent-marker.txt
+          retention-days: 2

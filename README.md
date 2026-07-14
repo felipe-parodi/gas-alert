@@ -47,10 +47,9 @@ for missing cities.
 **Scheduling** is built to survive GitHub Actions' unreliable cron (runs are
 routinely minutes-to-an-hour late, occasionally dropped): three cron attempts
 (17:07, 18:07, 19:07 UTC), and a guard that sends once per Pacific day at or
-after 10 AM. The first attempt that runs sends the alert and records the date
-in the `LAST_SENT_DATE` repo variable (created automatically); later attempts
-that day no-op. A failed send leaves the variable stale, so the next slot
-retries on its own. This also handles DST with no special casing, and each
+after 10 AM. The first attempt that runs sends the alert and uploads a
+`sent-<date>` marker artifact; later attempts that day see it and no-op. A
+failed send uploads no marker, so the next slot retries on its own. This also handles DST with no special casing, and each
 run re-enables the workflow to reset GitHub's 60-day inactivity auto-disable.
 Worst case on a slow day the email is an hour or two late — never silently
 missing. Manual `Run workflow` bypasses the guard but still marks the day
