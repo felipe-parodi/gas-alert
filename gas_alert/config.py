@@ -53,10 +53,14 @@ class Settings:
     sms_to: str | None  # e.g. 4085551234@tmomail.net
     ntfy_topic: str | None  # optional ntfy.sh fallback channel
     google_maps_api_key: str | None
+    maps_app: str  # which app the SMS link opens: apple | google | waze
 
 
 def settings_from_env() -> Settings:
     gmail_address = os.environ["GMAIL_ADDRESS"]
+    maps_app = (os.environ.get("MAPS_APP") or "apple").lower()
+    if maps_app not in ("apple", "google", "waze"):
+        raise ValueError(f"MAPS_APP must be apple, google, or waze, not {maps_app!r}")
     return Settings(
         gmail_address=gmail_address,
         gmail_app_password=os.environ["GMAIL_APP_PASSWORD"],
@@ -64,4 +68,5 @@ def settings_from_env() -> Settings:
         sms_to=os.environ.get("SMS_TO") or None,
         ntfy_topic=os.environ.get("NTFY_TOPIC") or None,
         google_maps_api_key=os.environ.get("GOOGLE_MAPS_API_KEY") or None,
+        maps_app=maps_app,
     )

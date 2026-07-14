@@ -33,12 +33,9 @@ def fetch_city(
 
 def demo_results(cities: list[City]) -> dict[str, StationPrice | None]:
     fake = [
-        StationPrice("Chevron", "450 10th St", 4.39, "demo",
-                     "https://maps.google.com/?q=demo"),
-        StationPrice("Safeway", "3550 Broadway", 4.29, "demo",
-                     "https://maps.google.com/?q=demo"),
-        StationPrice("ARCO", "1201 San Pablo Ave", 4.45, "demo",
-                     "https://maps.google.com/?q=demo"),
+        StationPrice("Chevron", "450 10th St", 4.39, "demo", 37.7706, -122.4098),
+        StationPrice("Safeway", "3550 Broadway", 4.29, "demo", 37.8225, -122.2555),
+        StationPrice("ARCO", "1201 San Pablo Ave", 4.45, "demo", 37.8814, -122.2963),
     ]
     return {city.name: fp for city, fp in zip(cities, fake)}
 

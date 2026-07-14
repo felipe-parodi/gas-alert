@@ -7,7 +7,6 @@ per day is far inside the free tier. Requires GOOGLE_MAPS_API_KEY with the
 """
 
 import datetime as dt
-from urllib.parse import parse_qs, urlparse
 
 import requests
 
@@ -20,7 +19,7 @@ FIELD_MASK = ",".join(
         "places.displayName",
         "places.formattedAddress",
         "places.fuelOptions",
-        "places.googleMapsUri",
+        "places.location",
     ]
 )
 RADIUS_METERS = 8000.0  # covers the city proper without bleeding far into neighbors
@@ -36,13 +35,6 @@ def _fresh(update_time: str | None) -> bool:
         return False
     age = dt.datetime.now(dt.timezone.utc) - updated
     return age <= dt.timedelta(hours=MAX_PRICE_AGE_HOURS)
-
-
-def _short_maps_url(uri: str) -> str:
-    """The API's googleMapsUri carries a long tracking param; the cid alone is
-    the stable, SMS-friendly link."""
-    cid = parse_qs(urlparse(uri).query).get("cid", [""])[0]
-    return f"https://maps.google.com/?cid={cid}" if cid else uri
 
 
 def cheapest_regular(
@@ -91,12 +83,14 @@ def cheapest_regular(
             price = units + nanos / 1e9
             if price <= 0 or not _fresh(fp.get("updateTime")):
                 continue
+            location = place.get("location") or {}
             candidate = StationPrice(
                 station=name,
                 address=place.get("formattedAddress", ""),
                 price=price,
                 source="google_places",
-                maps_url=_short_maps_url(place.get("googleMapsUri", "")),
+                lat=location.get("latitude"),
+                lng=location.get("longitude"),
             )
             if best is None or candidate.price < best.price:
                 best = candidate

@@ -40,4 +40,6 @@ jobs:
           SMS_TO: ${{ secrets.SMS_TO }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          EXCLUDE_STATIONS: ${{ vars.EXCLUDE_STATIONS }}
+          MAPS_APP: ${{ vars.MAPS_APP }}
         run: uv run python -m gas_alert.main

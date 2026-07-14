@@ -89,16 +89,12 @@ def cheapest_regular(city: City, excluded: list[str]) -> StationPrice:
                 addr = st.get("address") or {}
                 candidate = StationPrice(
                     station=st.get("name", "Unknown"),
-                    address=addr.get("line1", ""),
+                    address=", ".join(
+                        p for p in (addr.get("line1"), addr.get("locality"),
+                                    addr.get("region")) if p
+                    ),
                     price=float(price),
                     source="gasbuddy",
-                    maps_url=(
-                        "https://www.google.com/maps/search/?api=1&query="
-                        + requests.utils.quote(
-                            f"{st.get('name', '')} {addr.get('line1', '')} "
-                            f"{addr.get('locality', '')} {addr.get('region', '')}"
-                        )
-                    ),
                 )
                 if best is None or candidate.price < best.price:
                     best = candidate

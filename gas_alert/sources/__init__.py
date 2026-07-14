@@ -18,11 +18,12 @@ def is_excluded(station_name: str, excluded: list[str]) -> bool:
 
 @dataclass(frozen=True)
 class StationPrice:
-    station: str  # e.g. "Costco"
-    address: str  # street address, e.g. "150 Lawrence Station Rd"
+    station: str  # e.g. "Chevron"
+    address: str  # street address, e.g. "450 10th St"
     price: float  # USD per gallon, Regular (87)
     source: str  # which source produced this
-    maps_url: str  # link to the station on Google Maps
+    lat: float | None = None  # station coords when the source provides them;
+    lng: float | None = None  # map links fall back to a name+address search
 
     @property
     def short_label(self) -> str:

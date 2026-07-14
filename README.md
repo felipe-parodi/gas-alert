@@ -85,8 +85,10 @@ messages. If texts get flaky, set `NTFY_TOPIC` and install the
 
 - Cities / labels: `CITIES_JSON` env var (see `.env.example`); defaults in
   `gas_alert/config.py`
-- Skipped stations: `EXCLUDE_STATIONS` env var (default: membership-only
-  brands)
+- Skipped stations: `EXCLUDE_STATIONS` (repo variable; default:
+  membership-only brands)
+- SMS map-link app: `MAPS_APP` = `apple` | `google` | `waze` (repo variable;
+  default apple; the email always carries all three links)
 - Price freshness window: `MAX_PRICE_AGE_HOURS` (48h)
 - Search radius for Places: `RADIUS_METERS` in `gas_alert/sources/google_places.py`
 - Schedule: `.github/workflows/daily.yml` (dual cron + DST guard keeps it at
