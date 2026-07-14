@@ -81,7 +81,10 @@ def cheapest_regular(city: City, excluded: list[str]) -> StationPrice:
         if is_excluded(st.get("name", ""), excluded):
             continue
         for price_entry in st.get("prices", []):
-            for pay_type in ("cash", "credit"):
+            # Alerts quote card prices: at cash-discount stations the street
+            # sign (cash) runs ~10c below what a card actually pays, so prefer
+            # credit and only fall back to cash when credit isn't reported.
+            for pay_type in ("credit", "cash"):
                 p = price_entry.get(pay_type) or {}
                 price = p.get("price")
                 if not price or not _fresh(p.get("postedTime")):
@@ -98,6 +101,7 @@ def cheapest_regular(city: City, excluded: list[str]) -> StationPrice:
                 )
                 if best is None or candidate.price < best.price:
                     best = candidate
+                break
     if best is None:
         raise SourceUnavailable("gasbuddy: no fresh regular prices in area")
     return best

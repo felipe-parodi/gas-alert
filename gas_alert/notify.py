@@ -43,13 +43,16 @@ def sms_text(
     """One line per city with a tappable map link. ASCII only — carrier
     gateways mangle anything fancier (em dashes get eaten).
 
-    Gas 7/12
+    Gas 7/12 (card)
     SF $4.39 Chevron 10th
     https://maps.apple.com/?ll=...
     Home $4.35 Shell Telegraph 1.2km
     https://maps.apple.com/?ll=...
+
+    "(card)" because that's what the prices are: at cash-discount stations
+    the street sign shows the ~10c-lower cash price.
     """
-    lines = [f"Gas {today.month}/{today.day}"]
+    lines = [f"Gas {today.month}/{today.day} (card)"]
     for city in cities:
         r = results.get(city.name)
         if r is None:
@@ -85,7 +88,11 @@ def email_body(
     today: dt.date,
     anchor_picks: list[AnchorPick] = (),
 ) -> str:
-    lines = [f"Cheapest Regular (87) for {today.strftime('%A, %B %-d, %Y')}:", ""]
+    lines = [
+        f"Cheapest Regular (87) for {today.strftime('%A, %B %-d, %Y')} "
+        "(card prices):",
+        "",
+    ]
     for city in cities:
         r = results.get(city.name)
         if r is None:
@@ -121,7 +128,10 @@ def email_html(
 ) -> str:
     """HTML alternative so the links are real anchors — some mail clients
     don't auto-link URLs in plain text."""
-    rows = [f"<h3>Cheapest Regular (87) for {today.strftime('%A, %B %-d, %Y')}</h3>"]
+    rows = [
+        f"<h3>Cheapest Regular (87) for {today.strftime('%A, %B %-d, %Y')} "
+        "(card prices)</h3>"
+    ]
     for city in cities:
         r = results.get(city.name)
         if r is None:

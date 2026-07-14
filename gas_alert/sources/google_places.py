@@ -4,6 +4,10 @@ Gas stations in the Places API expose `fuelOptions.fuelPrices` (crowd/partner
 sourced, same data you see on Google Maps). One searchNearby request per city
 per day is far inside the free tier. Requires GOOGLE_MAPS_API_KEY with the
 "Places API (New)" enabled.
+
+The API reports a single price per fuel type with no cash/credit split; in
+practice it matches the credit/card price, which is what the alerts quote.
+At cash-discount stations expect the street sign (cash) to read ~10c lower.
 """
 
 import datetime as dt

@@ -25,7 +25,7 @@ RESULTS = {
 
 def test_sms_one_line_per_city_with_link():
     assert sms_text(CITIES, RESULTS, TODAY) == (
-        "Gas 7/12\n"
+        "Gas 7/12 (card)\n"
         "SF $4.39 Chevron 10th\n"
         "https://maps.apple.com/?ll=37.770600,-122.409800&q=Chevron\n"
         "Oak $4.29 Safeway Broadway\n"
@@ -51,6 +51,7 @@ def test_short_label_strips_number_and_suffix():
 
 def test_email_includes_address_and_all_app_links():
     body = email_body(CITIES, RESULTS, TODAY)
+    assert "(card prices)" in body
     assert "$4.39 — Chevron" in body
     assert "450 10th St" in body
     assert "https://www.google.com/maps/search/?api=1&query=37.770600,-122.409800" in body

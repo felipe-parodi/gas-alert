@@ -4,7 +4,7 @@ Every morning (10 AM Pacific), finds the cheapest **Regular (87)** station in
 each of your configured cities and sends one email + one free SMS:
 
 > ```
-> Gas 7/12
+> Gas 7/12 (card)
 > SF $4.39 Chevron 10th
 > https://maps.google.com/?cid=...
 > Oak $4.29 Safeway Broadway
@@ -13,6 +13,11 @@ each of your configured cities and sends one email + one free SMS:
 
 Membership-only pumps (Costco, BJ's, Sam's Club) are skipped by default;
 override with `EXCLUDE_STATIONS`.
+
+Prices are **card prices** (hence the `(card)` tag): Google reports one price
+per station and it tracks the credit price, and the GasBuddy source prefers
+credit over cash to match. At cash-discount stations the street sign shows
+the cash price, typically ~10¢ lower than what the alert quotes.
 
 All personal configuration — cities, email, phone — lives in environment
 variables / GitHub Actions secrets, never in the repo.
