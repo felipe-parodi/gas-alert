@@ -22,7 +22,7 @@ The email carries the same info plus addresses and Google Maps links.
 ## How it works
 
 ```
-GitHub Actions cron (10 AM PT)
+GitHub Actions cron (~10 AM PT, retries hourly until sent)
   └─ python -m gas_alert.main
        ├─ per city: GasBuddy GraphQL → fallback: Google Places API (New)
        ├─ pick lowest fresh (≤48h) Regular price per city
@@ -43,6 +43,18 @@ GitHub Actions cron (10 AM PT)
 If every source fails for every city, nothing is sent and the workflow fails
 (GitHub emails you about failed runs). Partial data still sends, with `n/a`
 for missing cities.
+
+**Scheduling** is built to survive GitHub Actions' unreliable cron (runs are
+routinely minutes-to-an-hour late, occasionally dropped): three cron attempts
+(17:07, 18:07, 19:07 UTC), and a guard that sends once per Pacific day at or
+after 10 AM. The first attempt that runs sends the alert and records the date
+in the `LAST_SENT_DATE` repo variable (created automatically); later attempts
+that day no-op. A failed send leaves the variable stale, so the next slot
+retries on its own. This also handles DST with no special casing, and each
+run re-enables the workflow to reset GitHub's 60-day inactivity auto-disable.
+Worst case on a slow day the email is an hour or two late — never silently
+missing. Manual `Run workflow` bypasses the guard but still marks the day
+sent.
 
 ## Setup
 
@@ -92,5 +104,5 @@ messages. If texts get flaky, set `NTFY_TOPIC` and install the
   default apple; the email always carries all three links)
 - Price freshness window: `MAX_PRICE_AGE_HOURS` (48h)
 - Search radius for Places: `RADIUS_METERS` in `gas_alert/sources/google_places.py`
-- Schedule: `.github/workflows/daily.yml` (dual cron + DST guard keeps it at
-  10 AM Pacific year-round)
+- Schedule: `.github/workflows/daily.yml` (three cron attempts + a
+  send-once-per-day guard; see **Scheduling** above)

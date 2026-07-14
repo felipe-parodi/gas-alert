@@ -2,27 +2,51 @@ name: Daily gas alert
 
 on:
   schedule:
-    # GH Actions cron is UTC and can't express "10 AM Pacific" across DST.
-    # Run at both candidate hours; the guard step keeps only the one that
-    # lands in the 10 AM Pacific hour.
-    - cron: "0 17 * * *"  # 10:00 AM PDT (summer)
-    - cron: "0 18 * * *"  # 10:00 AM PST (winter)
+    # GH Actions cron is UTC, best-effort, and routinely minutes-to-an-hour
+    # late (top-of-hour slots are the most congested), so don't aim at one
+    # exact hour. Three attempts, minutes off the hour; the guard step sends
+    # once per Pacific day, at or after 10 AM, whichever attempt runs first.
+    - cron: "7 17 * * *"  # 10:07 PDT | 09:07 PST (guard skips: before 10)
+    - cron: "7 18 * * *"  # 11:07 PDT backstop | 10:07 PST
+    - cron: "7 19 * * *"  # 12:07 PDT backstop | 11:07 PST backstop
   workflow_dispatch:
+
+# A delayed run can overlap the next slot; serialize so the second run sees
+# the first one's LAST_SENT_DATE and skips instead of double-sending.
+concurrency:
+  group: daily-gas-alert
+  cancel-in-progress: false
+
+permissions:
+  actions: write  # LAST_SENT_DATE variable + schedule keepalive
+  contents: read
 
 jobs:
   alert:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Skip the off-DST duplicate run
+      - name: Send once per day, at or after 10 AM Pacific
         id: guard
         run: |
+          today=$(TZ=America/Los_Angeles date +%F)
           hour=$(TZ=America/Los_Angeles date +%-H)
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$hour" = "10" ]; then
+          last=$(gh api "repos/$GITHUB_REPOSITORY/actions/variables/LAST_SENT_DATE" -q .value 2>/dev/null || echo "")
+          echo "today=$today" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif [ "$hour" -ge 10 ] && [ "$last" != "$today" ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping: it is ${hour}h Pacific, not 10h"
+            echo "Skipping: ${hour}h Pacific, last sent: ${last:-never}"
           fi
+
+      - name: Keep the schedule alive
+        # Scheduled workflows are auto-disabled after 60 days without repo
+        # activity; re-enabling on every trigger resets that clock.
+        run: gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/daily.yml/enable"
 
       - uses: actions/checkout@v4
         if: steps.guard.outputs.run == 'true'
@@ -44,3 +68,14 @@ jobs:
           EXCLUDE_STATIONS: ${{ vars.EXCLUDE_STATIONS }}
           MAPS_APP: ${{ vars.MAPS_APP }}
         run: uv run python -m gas_alert.main
+
+      - name: Mark today as sent
+        # Only reached when the send succeeded — a failed send leaves the
+        # variable stale so the next cron slot retries automatically.
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          today="${{ steps.guard.outputs.today }}"
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/actions/variables/LAST_SENT_DATE" \
+            -f name=LAST_SENT_DATE -f value="$today" 2>/dev/null \
+            || gh api -X POST "repos/$GITHUB_REPOSITORY/actions/variables" \
+                 -f name=LAST_SENT_DATE -f value="$today"
